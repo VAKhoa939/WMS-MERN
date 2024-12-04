@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "module": "commonjs",
+    "target": "es2016",
+    "baseUrl": ".",
+    "paths": {
+      "*": ["src/*"],
+      "config/*": ["src/config/*"],
+      "constants/*": ["src/constants/*"],
+      "Controller/*": ["src/Controller/*"],
+      "middlewares/*": ["src/middlewares/*"],
+      "models/*": ["src/models/*"],
+      "routes/*": ["src/routes/*"],
+      "utils/*": ["src/utils/*"]
+    }
+  },
+  "exclude": ["node_modules"]
+}

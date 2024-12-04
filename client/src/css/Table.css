@@ -1,0 +1,116 @@
+.table-background {
+  padding: 0.01em 30px;
+  background-color: rgb(15, 17, 24);
+  width: 100%;
+}
+
+.table-container {
+  width: 100%;
+  max-width: 100%;
+  overflow: auto;
+  padding-bottom: 30px;
+}
+
+.table-buttons {
+  display: flex;
+  justify-content: space-between;
+  justify-items: center;
+  margin: 20px;
+}
+
+.search-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.search-bar input {
+  background-color: rgb(15, 17, 24);
+  border: 1px solid gray;
+  border-radius: 10px;
+  padding: 0 10px;
+  font-size: 20px;
+  height: 35px;
+}
+
+.search-bar .search-icon:hover {
+  opacity: 0.7;
+}
+
+.create-btn {
+  display: flex;
+  align-items: center;
+  column-gap: 10px;
+}
+
+.create-btn label {
+  font-size: 22px;
+}
+
+.icon {
+  color: rgb(200, 200, 200);
+}
+
+table {
+  color: rgb(200, 200, 200);
+  background-color: black;
+  border-collapse: collapse;
+}
+
+tbody {
+  background-color: black;
+}
+
+th,
+td {
+  white-space: nowrap;
+  text-align: center;
+  padding: 3px 5px;
+  font-size: 20px;
+}
+
+thead {
+  border: 1px solid rgb(128, 128, 128);
+  column-gap: 5px;
+}
+
+tbody {
+  border-width: 0 1px;
+  border-style: none solid;
+  border-color: none gray;
+  background-color: rgb(23, 22, 59);
+}
+
+td {
+  border-bottom: 1px solid gray;
+}
+
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 0 auto;
+}
+
+.pagination-btn {
+  border-radius: 8px;
+  border: 1px solid transparent;
+  padding: 0.6em 1.2em;
+  font-size: 1em;
+  font-weight: 500;
+  font-family: inherit;
+  background-color: #1a1a1a;
+  cursor: pointer;
+  transition: border-color 0.25s;
+}
+
+.page-number {
+  padding-left: 10px;
+  color: white;
+}
+
+.search-bar .search-icon:hover,
+.create-btn:hover,
+.pagination-btn:hover {
+  opacity: 0.7;
+}

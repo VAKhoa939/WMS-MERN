@@ -1,0 +1,48 @@
+body,
+main,
+header,
+div,
+p,
+textarea,
+button,
+img,
+input,
+ul,
+li,
+h1,
+nav {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  scroll-behavior: smooth;
+  font-family: "Segoe UI";
+}
+
+ul {
+  list-style-type: none;
+}
+
+a,
+a:visited {
+  color: rgb(127, 127, 255);
+  text-decoration: none;
+}
+
+a:hover {
+  opacity: 0.7;
+}
+
+:root {
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  color-scheme: light dark;
+  color: rgba(0, 0, 0, 0.87);
+  background-color: rgb(220, 220, 220);
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
