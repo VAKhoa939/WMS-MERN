@@ -15,7 +15,7 @@ Yarn version: 1.22.22
 # 4. .env for client
     VITE_API_URL=your-api-url
 
-# 4. .env for server
+# 5. .env for server
     # MongoDB
     MONGODB_URI=mongodb+srv://goods-admin:123@cluster0.douu7.mongodb.net/
     DATABASE_NAME=WMS
