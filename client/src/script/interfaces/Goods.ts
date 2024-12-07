@@ -1,11 +1,7 @@
 import { formatPrice } from "../utils/formatPrice";
-import {
-  Address,
-  AddressRequest,
-  getAddressById,
-  updateAddress,
-} from "./Address";
-import { getUserById, User } from "./User";
+import { Address } from "./Address";
+import { ResponseBody } from "./ResponseBody";
+import { User } from "./User";
 
 export interface Goods {
   _id: string;
@@ -31,7 +27,7 @@ export interface Goods {
   remaining_value_formatted: string;
   responsible_user_name: string;
   responsible_user_code: string;
-  location_code: string;
+  location_name: string;
 }
 
 export type GoodsRequest = Omit<
@@ -41,118 +37,114 @@ export type GoodsRequest = Omit<
   | "remaining_value_formatted"
   | "responsible_user_name"
   | "responsible_user_code"
-  | "location_code"
+  | "location_name"
 >;
 
-const HANDLE_ASSET_URL = import.meta.env.VITE_API_URL + "/goods";
+const GOODS_URL = import.meta.env.VITE_API_URL + "/goods";
 
 export async function getGoodsList(
-  token: string,
+  accessToken: string | null,
   users: User[],
   addresses: Address[]
 ) {
-  const res = await fetch(`${HANDLE_ASSET_URL}`, {
-    headers: { token: `Bearer ${token}` },
+  const res = await fetch(`${GOODS_URL}`, {
+    headers: { token: `Bearer ${accessToken}` },
   });
-  const data: Goods[] = await res.json();
-  data.forEach((data) => {
-    data.unit_price_formatted = formatPrice(data.unit_price);
-    data.origin_price_formatted = formatPrice(data.origin_price);
-    data.remaining_value_formatted = formatPrice(data.remaining_value);
-    data.responsible_user_name =
-      users.find((user) => user._id === data.responsible_user)?.name || "N/A";
-    data.location_code =
-      addresses.find((address) => address._id === data.location)?.building_id ||
-      "N/A";
+  const body = (await res.json()) as ResponseBody;
+  if (!body.success) throw new Error(body.message);
+
+  body.data.forEach((goods: Goods) => {
+    goods.unit_price_formatted = formatPrice(goods.unit_price);
+    goods.origin_price_formatted = formatPrice(goods.origin_price);
+    goods.remaining_value_formatted = formatPrice(goods.remaining_value);
+    goods.responsible_user_name =
+      users.find((user) => user._id === goods.responsible_user)?.name ||
+      "Không có";
+    goods.location_name =
+      addresses.find((address) => address._id === goods.location)
+        ?.building_name || "Không có";
   });
-  console.log(data);
-  return data;
+  console.log(body.data);
+  return body.data as Goods[];
 }
 
-export async function getGoodsById(id: string, token: string) {
-  const res = await fetch(`${HANDLE_ASSET_URL}/${id}`, {
-    headers: { token: `Bearer ${token}` },
+export async function getGoodsById(
+  id: string,
+  accessToken: string | null,
+  users: User[],
+  addresses: Address[]
+) {
+  const res = await fetch(`${GOODS_URL}/${id}`, {
+    headers: { token: `Bearer ${accessToken}` },
   });
-  const data = await res.json();
-  data.unit_price_formatted = formatPrice(data.unit_price);
-  data.origin_price_formatted = formatPrice(data.origin_price);
-  data.remaining_value_formatted = formatPrice(data.remaining_value);
+  const body = (await res.json()) as ResponseBody;
+  if (!body.success) throw new Error(body.message);
 
-  const responsible_user = await getUserById(data.responsible_user, token);
-  data.responsible_user_name = responsible_user.name;
-  data.responsible_user_userid = responsible_user.user_id;
-  const address = await getAddressById(data.location, token);
-  data.location_name = address.building_id;
-  console.log(data);
-  return data;
+  body.data.unit_price_formatted = formatPrice(body.data.unit_price);
+  body.data.origin_price_formatted = formatPrice(body.data.origin_price);
+  body.data.remaining_value_formatted = formatPrice(body.data.remaining_value);
+
+  const responsible_user = users.find(
+    (user) => user._id === body.data.responsible_user
+  ) as User;
+  body.data.responsible_user_name = responsible_user.name;
+  body.data.responsible_user_userid = responsible_user.user_id;
+
+  const address = addresses.find(
+    (address) => address._id === body.data.location
+  ) as Address;
+  body.data.location_name = address.building_name;
+
+  console.log(body.data);
+  return body.data as Goods;
 }
 
 export async function createGoods(
   goods: GoodsRequest,
-  address: AddressRequest,
-  token: string
+  accessToken: string | null
 ) {
-  try {
-    const requestInit: RequestInit = {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        token: `Bearer ${token}`,
-      },
-      body: JSON.stringify(goods),
-    };
-    const res = await fetch(`${HANDLE_ASSET_URL}`, requestInit);
-    const data = (await res.json()) as Goods;
-    if (res.ok) {
-      console.log(data);
-      address.goods_list.push(data._id);
-      return await updateAddress(address._id, address, token);
-    }
-  } catch (error) {
-    console.log(error);
-    return false;
-  }
+  const requestInit: RequestInit = {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      token: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(goods),
+  };
+  const res = await fetch(`${GOODS_URL}`, requestInit);
+  const body = (await res.json()) as ResponseBody;
+  if (!body.success) throw new Error(body.message);
+  return body.data as Goods;
 }
 
 export async function updateGoods(
   id: string,
   goods: GoodsRequest,
-  token: string
+  accessToken: string | null
 ) {
-  try {
-    const requestInit: RequestInit = {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        token: `Bearer ${token}`,
-      },
-      body: JSON.stringify(goods),
-    };
-    const res = await fetch(`${HANDLE_ASSET_URL}/${id}`, requestInit);
-    const data = await res.json();
-    console.log(data);
-    return res.ok;
-  } catch (error) {
-    console.log(error);
-    return false;
-  }
+  const requestInit: RequestInit = {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      token: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(goods),
+  };
+  const res = await fetch(`${GOODS_URL}/${id}`, requestInit);
+  const body = (await res.json()) as ResponseBody;
+  if (!body.success) throw new Error(body.message);
+  return body.data as Goods;
 }
 
-export async function deleteGoods(id: string, token: string) {
-  try {
-    const requestInit: RequestInit = {
-      method: "DELETE",
-      headers: {
-        "Content-Type": "application/json",
-        token: `Bearer ${token}`,
-      },
-    };
-    const res = await fetch(`${HANDLE_ASSET_URL}/${id}`, requestInit);
-    const data = await res.json();
-    console.log(data);
-    return res.ok;
-  } catch (error) {
-    console.log(error);
-    return false;
-  }
+export async function deleteGoods(id: string, accessToken: string | null) {
+  const requestInit: RequestInit = {
+    method: "DELETE",
+    headers: {
+      "Content-Type": "application/json",
+      token: `Bearer ${accessToken}`,
+    },
+  };
+  const res = await fetch(`${GOODS_URL}/${id}`, requestInit);
+  const body = (await res.json()) as ResponseBody;
+  if (!body.success) throw new Error(body.message);
 }

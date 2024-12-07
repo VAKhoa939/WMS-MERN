@@ -1,15 +1,14 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Layout from "./pages/layout/Layout";
 import LoginPage from "./pages/auth-pages/LoginPage";
 import RegisterPage from "./pages/auth-pages/RegisterPage";
-import { AuthContext, AuthProvider } from "./context/AuthContext";
+import { AuthProvider } from "./context/AuthContext";
 import HomePage from "./pages/home-page/HomePage";
 import GoodsDashboardPage from "./pages/goods-pages/GoodsDashboardPage";
 import { MainRefProvider } from "./context/MainRefContext";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import GoodsInfoPage from "./pages/goods-pages/GoodsInfoPage";
 import CreateGoodsPage from "./pages/goods-pages/CreateGoodsPage";
-import React from "react";
 import UserDashboardPage from "./pages/user-pages/UserDashboardPage";
 import UserInfoPage from "./pages/user-pages/UserInfoPage";
 import AddressDashboardPage from "./pages/address-pages/AddressDashboardPage";
@@ -17,14 +16,15 @@ import AddressInfoPage from "./pages/address-pages/AddressInfoPage";
 import CreateAddressPage from "./pages/address-pages/CreateAddressPage";
 import NavLookup from "./utils/navigateLookup";
 import ChatPage from "./pages/chat-page/ChatPage";
+import ProtectedRoute from "./pages/ProtectedRoute";
 
 function App() {
   const queryClient = new QueryClient();
 
   return (
     <BrowserRouter>
-      <AuthProvider>
-        <QueryClientProvider client={queryClient}>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
           <MainRefProvider>
             <Layout>
               <Routes>
@@ -70,20 +70,10 @@ function App() {
               </Routes>
             </Layout>
           </MainRefProvider>
-        </QueryClientProvider>
-      </AuthProvider>
+        </AuthProvider>
+      </QueryClientProvider>
     </BrowserRouter>
   );
 }
-interface ProtectedRouteProps {
-  Component: React.FC;
-}
-const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ Component }) => {
-  const authContext = React.useContext(AuthContext);
-  if (!authContext) {
-    throw new Error("useContext must be used within an AuthProvider");
-  }
-  return authContext.email ? <Component /> : <Navigate to="/login" />;
-};
 
 export default App;

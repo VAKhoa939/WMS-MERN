@@ -7,25 +7,24 @@ import { userTableColumns } from "../../utils/tableColumns";
 import Loader from "../../components/Loader";
 import { useAuth } from "../../context/AuthContext";
 import NavLookup from "../../utils/navigateLookup";
+import { isErrorWithMessage } from "../../utils/handleError";
 
 const UserDashboardPage = () => {
+  const { authState } = useAuth();
+
   const mainRef = useMainRef();
-  const { refreshAccessToken, accessToken } = useAuth();
   useScrollToMain();
 
-  const { data: users, isLoading } = useQuery({
-    queryFn: async () => {
-      let token = accessToken;
-      if (!token) {
-        token = await refreshAccessToken();
-        if (!token) {
-          throw new Error("Unable to refresh access token");
-        }
-      }
-      return getUsers(token);
-    },
+  const {
+    data: users,
+    isLoading,
+    error,
+  } = useQuery({
+    queryFn: async () => getUsers(authState.accessToken),
     queryKey: ["users"],
   });
+
+  if (error && isErrorWithMessage(error)) console.log(error.message); // toast here
 
   return (
     <main className="dashboard-page" ref={mainRef}>

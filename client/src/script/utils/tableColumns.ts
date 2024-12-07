@@ -62,7 +62,7 @@ export const goodsTableColumns: Column[] = [
   },
   {
     header: "Địa chỉ nhà kho",
-    accessorKey: "location_code",
+    accessorKey: "location_name",
     footer: "Địa chỉ nhà kho",
   },
   {
@@ -124,9 +124,9 @@ export const addressTableColumns: Column[] = [
     footer: "Tên nhà kho",
   },
   {
-    header: "Số lượng hàng hóa",
-    accessorKey: "goods_quantity",
-    footer: "Số lượng hàng hóa",
+    header: "Sức chứa của nhà kho",
+    accessorKey: "maximum_capacity",
+    footer: "Sức chứa của nhà kho",
   },
   {
     header: "Người phụ trách",

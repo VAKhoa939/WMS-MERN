@@ -8,6 +8,7 @@
     "dev": "nodemon src/server.js"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.21.0",
     "bcryptjs": "^2.4.3",
     "body-parser": "^1.20.3",
     "csv-parser": "^3.0.0",
@@ -27,8 +28,5 @@
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.8.3",
     "nodemon": "^3.1.7"
-  },
-  "license": "MIT",
-  "author": "Nguyen Thanh Hieu",
-  "private": true
+  }
 }

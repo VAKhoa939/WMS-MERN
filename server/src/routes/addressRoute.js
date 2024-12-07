@@ -1,33 +1,18 @@
-// routes/addressRoutes.js
-const express = require("express");
-const router = express.Router();
-const addressController = require("../controllers/addressController");
-const middlewareController = require("../middleware/middleware");
+import { verifyToken } from "../middleware/middleware.js";
+import {
+  createAddress,
+  getAllAddresses,
+  getAddressById,
+  updateAddress,
+  deleteAddress,
+} from "../controllers/addressController.js";
+import { Router } from "express";
+const router = Router();
 
-router.post(
-  "/",
-  middlewareController.verifyToken,
-  addressController.createAddress
-);
-router.get(
-  "/",
-  middlewareController.verifyToken,
-  addressController.getAllAddresses
-);
-router.get(
-  "/:id",
-  middlewareController.verifyToken,
-  addressController.getAddressById
-);
-router.put(
-  "/:id",
-  middlewareController.verifyToken,
-  addressController.updateAddress
-);
-router.delete(
-  "/:id",
-  middlewareController.verifyToken,
-  addressController.deleteAddress
-);
+router.post("/", verifyToken, createAddress);
+router.get("/", verifyToken, getAllAddresses);
+router.get("/:id", verifyToken, getAddressById);
+router.put("/:id", verifyToken, updateAddress);
+router.delete("/:id", verifyToken, deleteAddress);
 
-module.exports = router;
+export default router;

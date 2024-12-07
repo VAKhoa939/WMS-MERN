@@ -1,7 +1,7 @@
 import "../../../css/InfoPage.css";
 import { ReactNode, useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useMainRef, useScrollToMain } from "../../context/MainRefContext";
 import { getUsers, User } from "../../interfaces/User";
 import Loader from "../../components/Loader";
@@ -15,41 +15,38 @@ import {
   updateAddress,
 } from "../../interfaces/Address";
 import NavLookup from "../../utils/navigateLookup";
+import { isErrorWithMessage } from "../../utils/handleError";
 
 const AddressInfoPage = () => {
   const [formData, setFormData] = useState<Address>({} as Address);
   const [mode, setMode] = useState<"info" | "update">("info");
-  const { refreshAccessToken, accessToken } = useAuth();
+  const { authState } = useAuth();
   const location = useLocation();
   const id = location.pathname.split("/").pop() as string;
   const ICON_SIZE = 20;
 
-  const { data, isLoading: isLoadingAddress } = useQuery<Address>({
-    queryFn: async () => {
-      let token = accessToken;
-      if (!token) {
-        token = await refreshAccessToken();
-        if (!token) {
-          throw new Error("Unable to refresh access token");
-        }
-      }
-      return getAddressById(id, token);
-    },
-    queryKey: ["address", id],
+  const navigate = useNavigate();
+  const mainRef = useMainRef();
+  useScrollToMain();
+
+  const {
+    data: users,
+    isLoading: isLoadingUsers,
+    error: errorUsers,
+  } = useQuery<User[]>({
+    queryFn: async () => getUsers(authState.accessToken),
+    queryKey: ["users"],
   });
 
-  const { data: users, isLoading: isLoadingUsers } = useQuery<User[]>({
-    queryFn: async () => {
-      let token = accessToken;
-      if (!token) {
-        token = await refreshAccessToken();
-        if (!token) {
-          throw new Error("Unable to refresh access token");
-        }
-      }
-      return getUsers(token);
-    },
-    queryKey: ["users"],
+  const {
+    data,
+    isLoading: isLoadingAddress,
+    error: errorAddress,
+  } = useQuery<Address>({
+    queryFn: async () =>
+      getAddressById(id, authState.accessToken, users as User[]),
+    queryKey: ["address", id, users],
+    enabled: !!users && users.length > 0,
   });
 
   useEffect(() => {
@@ -58,9 +55,36 @@ const AddressInfoPage = () => {
     }
   }, [data]);
 
-  const navigate = useNavigate();
-  const mainRef = useMainRef();
-  useScrollToMain();
+  const updateAddressMutation = useMutation(
+    (data: {
+      id: string;
+      address: AddressRequest;
+      accessToken: string | null;
+    }) => updateAddress(data.id, data.address, data.accessToken),
+    {
+      onSuccess: () => {
+        console.log("Cập nhật địa chỉ nhà kho thành công"); // toast here
+        setMode("info");
+      },
+      onError: (error: Error) => {
+        if (isErrorWithMessage(error)) console.log(error.message); // toast here
+      },
+    }
+  );
+
+  const deleteAddressMutation = useMutation(
+    (data: { id: string; accessToken: string | null }) =>
+      deleteAddress(data.id, data.accessToken),
+    {
+      onSuccess: () => {
+        console.log("Xóa địa chỉ nhà kho thành công"); // toast here
+        navigate(NavLookup.ADDRESS_BASE_PATH);
+      },
+      onError: (error: Error) => {
+        if (isErrorWithMessage(error)) console.log(error.message);
+      },
+    }
+  );
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     const { name } = e.target;
@@ -87,23 +111,21 @@ const AddressInfoPage = () => {
       | React.MouseEvent<HTMLButtonElement, MouseEvent>
   ) {
     e.preventDefault();
-    let token = accessToken;
-    if (!token) {
-      token = await refreshAccessToken();
-      if (!token) {
-        throw new Error("Unable to refresh access token");
-      }
-    }
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { responsible_user_name, goods_quantity, ...filteredData } = formData;
+    const {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      responsible_user_name,
+      ...filteredData
+    } = formData;
+
     const addressRequest = { ...filteredData } as AddressRequest;
     console.log(addressRequest);
-    const result = await updateAddress(id, addressRequest, token);
-    if (result) {
-      console.log("Updated address successfully");
-      setMode("info");
-    } else console.log("failed to update address");
+
+    updateAddressMutation.mutate({
+      id,
+      address: addressRequest,
+      accessToken: authState.accessToken,
+    });
   }
 
   async function handleDelete(
@@ -112,42 +134,33 @@ const AddressInfoPage = () => {
       | React.MouseEvent<HTMLButtonElement, MouseEvent>
   ) {
     e.preventDefault();
-    let token = accessToken;
-    if (!token) {
-      token = await refreshAccessToken();
-      if (!token) {
-        throw new Error("Unable to refresh access token");
-      }
-    }
-    const result = await deleteAddress(id, token);
-    if (result) {
-      navigate(NavLookup.ADDRESS_BASE_PATH);
-    }
+    deleteAddressMutation.mutate({ id, accessToken: authState.accessToken });
   }
 
   const InfoMode = (): ReactNode => {
     return (
       <div className="info-body">
-        <div className="long-info">
-          <div className="info-header">Mã nhà kho: </div>
-          <p>{formData.building_id}</p>
+        <div className="normal-info">
+          <div className="info-container">
+            <div className="info-header">Mã nhà kho: </div>
+            <p>{formData.building_id}</p>
+          </div>
+          <div className="info-container">
+            <div className="info-header">Tên nhà kho: </div>
+            <p>{formData.building_name}</p>
+          </div>
+          <div className="info-container">
+            <div className="info-header">Sức chứa tối đa của nhà kho: </div>
+            <p>{formData.maximum_capacity}</p>
+          </div>
+          <div className="info-container">
+            <div className="info-header">Người chịu trách nhiệm: </div>
+            <p>{`${formData.responsible_user_name} - ${
+              users?.find((user) => user._id === formData.responsible_user)
+                ?.user_id
+            }`}</p>
+          </div>
         </div>
-        <div className="long-info">
-          <div className="info-header">Tên nhà kho: </div>
-          <p>{formData.building_name}</p>
-        </div>
-        <div className="long-info">
-          <div className="info-header">Người chịu trách nhiệm: </div>
-          <p>{`${formData.responsible_user_name} - ${
-            users?.find((user) => user._id === formData.responsible_user)
-              ?.user_id
-          }`}</p>
-        </div>
-        <div className="long-info">
-          <div className="info-header">Số lượng hàng hóa: </div>
-          <p>{formData.goods_quantity}</p>
-        </div>
-
         <div className="button-container">
           <button className="update-btn" onClick={() => setMode("update")}>
             Cập nhật thông tin
@@ -163,49 +176,50 @@ const AddressInfoPage = () => {
   const UpdateMode = (): ReactNode => {
     return (
       <form className="info-body">
-        <div className="long-info">
-          <div className="info-header">Mã nhà kho: </div>
-          <input
-            type="text"
-            name="building_id"
-            value={formData.building_id}
-            readOnly
-          />
-        </div>
-        <div className="long-info">
-          <div className="info-header">Tên nhà kho: </div>
-          <input
-            type="text"
-            name="building_name"
-            value={formData.building_name}
-            onChange={handleChange}
-          />
-        </div>
-        <div className="long-info">
-          <div className="info-header">Người chịu trách nhiệm: </div>
-          <select
-            id="dropdown"
-            className="dropdown"
-            name="responsible_user"
-            onChange={handleSelect}
-          >
-            <option>Chọn người chịu trách nhiệm</option>
-            {users?.map((user) => (
-              <option
-                value={user._id}
-                selected={user._id === formData.responsible_user}
-              >{`${user.name} - ${user.user_id}`}</option>
-            ))}
-          </select>
-        </div>
-        <div className="long-info">
-          <div className="info-header">Số lượng hàng hóa: </div>
-          <input
-            type="number"
-            name="goods_quantity"
-            value={formData.goods_quantity}
-            readOnly
-          />
+        <div className="normal-info">
+          <div className="info-container">
+            <div className="info-header">Mã nhà kho: </div>
+            <input
+              type="text"
+              name="building_id"
+              value={formData.building_id}
+              readOnly
+            />
+          </div>
+          <div className="info-container">
+            <div className="info-header">Tên nhà kho: </div>
+            <input
+              type="text"
+              name="building_name"
+              value={formData.building_name}
+              onChange={handleChange}
+            />
+          </div>
+          <div className="info-container">
+            <div className="info-header">Sức chứa tối đa của nhà kho: </div>
+            <input
+              type="number"
+              name="maximum_capacity"
+              value={formData.maximum_capacity}
+            />
+          </div>
+          <div className="info-container">
+            <div className="info-header">Người chịu trách nhiệm: </div>
+            <select
+              id="dropdown"
+              className="dropdown"
+              name="responsible_user"
+              onChange={handleSelect}
+            >
+              <option>Chọn người chịu trách nhiệm</option>
+              {users?.map((user) => (
+                <option
+                  value={user._id}
+                  selected={user._id === formData.responsible_user}
+                >{`${user.name} - ${user.user_id}`}</option>
+              ))}
+            </select>
+          </div>
         </div>
         <div className="button-container">
           <button className="submit-btn" onClick={handleSubmit}>
@@ -219,6 +233,12 @@ const AddressInfoPage = () => {
     );
   };
 
+  if (errorUsers && isErrorWithMessage(errorUsers)) {
+    console.log(errorUsers.message); // toast here
+  } else if (errorAddress && isErrorWithMessage(errorAddress)) {
+    console.log(errorAddress.message); // toast here
+  }
+
   return (
     <main ref={mainRef} className="info-page">
       <div className="container">
@@ -231,7 +251,7 @@ const AddressInfoPage = () => {
             <p>Trở về</p>
           </div>
           <h1 className="title">
-            {mode === "info" ? "Thông Tin" : "Cập Nhật"} Địa Chỉ Hàng Hóa
+            {mode === "info" ? "Thông Tin" : "Cập Nhật"} Nhà Kho
           </h1>
           {isLoadingAddress || isLoadingUsers ? (
             <Loader />

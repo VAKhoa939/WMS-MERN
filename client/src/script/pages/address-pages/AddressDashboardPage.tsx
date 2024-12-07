@@ -8,40 +8,38 @@ import { useAuth } from "../../context/AuthContext";
 import { getAddresses } from "../../interfaces/Address";
 import { getUsers, User } from "../../interfaces/User";
 import NavLookup from "../../utils/navigateLookup";
+import { isErrorWithMessage } from "../../utils/handleError";
 
 const AddressDashboardPage = () => {
+  const { authState } = useAuth();
+
   const mainRef = useMainRef();
-  const { refreshAccessToken, accessToken } = useAuth();
   useScrollToMain();
 
-  const { data: users, isLoading: isLoadingUsers } = useQuery({
-    queryFn: async () => {
-      let token = accessToken;
-      if (!token) {
-        token = await refreshAccessToken();
-        if (!token) {
-          throw new Error("Unable to refresh access token");
-        }
-      }
-      return getUsers(token);
-    },
+  const {
+    data: users,
+    isLoading: isLoadingUsers,
+    error: errorUsers,
+  } = useQuery({
+    queryFn: async () => getUsers(authState.accessToken),
     queryKey: ["users"],
   });
 
-  const { data: addresses, isLoading: isLoadingAddresses } = useQuery({
-    queryFn: async () => {
-      let token = accessToken;
-      if (!token) {
-        token = await refreshAccessToken();
-        if (!token) {
-          throw new Error("Unable to refresh access token");
-        }
-      }
-      return getAddresses(token, users as User[]);
-    },
+  const {
+    data: addresses,
+    isLoading: isLoadingAddresses,
+    error: errorAddresses,
+  } = useQuery({
+    queryFn: async () => getAddresses(authState.accessToken, users as User[]),
     queryKey: ["addresses", users],
     enabled: !!users && users.length > 0,
   });
+
+  if (errorUsers && isErrorWithMessage(errorUsers)) {
+    console.log(errorUsers.message); // toast here
+  } else if (errorAddresses && isErrorWithMessage(errorAddresses)) {
+    console.log(errorAddresses.message); // toast here
+  }
 
   return (
     <main className="dashboard-page" ref={mainRef}>

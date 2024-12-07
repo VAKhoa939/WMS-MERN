@@ -3,9 +3,10 @@ import "../../../css/AuthPages.css";
 import { useNavigate } from "react-router-dom";
 import { useAuth, RegisterUser } from "../../context/AuthContext";
 import { useMainRef, useScrollToMain } from "../../context/MainRefContext";
+import { useMutation } from "@tanstack/react-query";
+import { isErrorWithMessage } from "../../utils/handleError";
 
 const RegisterPage = () => {
-  const mainRef = useMainRef();
   const [registerUser, setRegisterUser] = useState<RegisterUser>(
     {} as RegisterUser
   );
@@ -13,7 +14,21 @@ const RegisterPage = () => {
   const { register } = useAuth();
   const navigate = useNavigate();
 
+  const mainRef = useMainRef();
   useScrollToMain();
+
+  const registerMutation = useMutation(
+    (data: { user: RegisterUser }) => register(data.user),
+    {
+      onSuccess: () => {
+        console.log("Đăng nhập thành công"); // toast here
+        navigate("/login");
+      },
+      onError: (error: Error) => {
+        if (isErrorWithMessage(error)) console.log(error.message); // toast here
+      },
+    }
+  );
 
   function onChangeInput(event: React.ChangeEvent<HTMLInputElement>) {
     if (event.target.name === "confirm-password") {
@@ -26,12 +41,9 @@ const RegisterPage = () => {
     }));
   }
 
-  async function handleLogin(e: React.FormEvent) {
+  async function handleRegister(e: React.FormEvent) {
     e.preventDefault();
-    const success = await register(registerUser);
-    if (success) {
-      navigate("/login");
-    }
+    registerMutation.mutate({ user: registerUser });
   }
 
   return (
@@ -82,7 +94,7 @@ const RegisterPage = () => {
               />
             </div>
           </div>
-          <div className="register-btn" onClick={handleLogin}>
+          <div className="register-btn" onClick={handleRegister}>
             Đăng ký
           </div>
           <p>Nếu bạn đã có tài khoản, hãy nhấn vào nút phía dưới.</p>

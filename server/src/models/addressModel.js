@@ -1,6 +1,6 @@
-const mongoose = require("mongoose");
+import { Schema, model } from "mongoose";
 
-const addressesSchema = new mongoose.Schema({
+const addressesSchema = new Schema({
   building_id: {
     type: String,
     unique: true,
@@ -8,18 +8,18 @@ const addressesSchema = new mongoose.Schema({
   },
   building_name: {
     type: String,
+    unique: true,
     required: true,
     description: "Tên nhà kho",
   },
-  goods_list: [
-    {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Asset",
-      description: "Danh sách ID của hàng hóa trong nhà kho",
-    },
-  ],
+  maximum_capacity: {
+    type: Number,
+    min: 0,
+    required: true,
+    description: "Sức chứa tối đa của nhà kho",
+  },
   responsible_user: {
-    type: mongoose.Schema.Types.ObjectId,
+    type: Schema.Types.ObjectId,
     ref: "User",
     description: "ID người phụ trách nhà kho",
   },
@@ -31,6 +31,6 @@ addressesSchema.pre("save", function (next) {
   }
   next();
 });
-const Address = mongoose.model("Address", addressesSchema);
+const Address = model("Address", addressesSchema);
 
-module.exports = Address;
+export default Address;

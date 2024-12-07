@@ -5,9 +5,11 @@ import React, {
   useEffect,
   ReactNode,
   useContext,
-  useCallback,
 } from "react";
-import { checkTokenExpiration, getPayload } from "../utils/jwt";
+import { isTokenExpired, decodePayload } from "../utils/jwt";
+import { ResponseBody } from "../interfaces/ResponseBody";
+import { useQuery } from "@tanstack/react-query";
+import { isErrorWithMessage } from "../utils/handleError";
 
 export interface LoginUser {
   email: string;
@@ -20,61 +22,108 @@ export interface RegisterUser {
   password: string;
 }
 
-interface AuthContextType {
-  accessToken: string | null;
-  _id: string | null;
+interface AuthState {
+  id: string | null;
   email: string | null;
   admin: boolean | null;
-  login: (user: LoginUser) => Promise<boolean>;
-  logout: () => void;
-  register: (user: RegisterUser) => Promise<boolean>;
-  refreshAccessToken: () => Promise<string | null>;
+  accessToken: string | null;
 }
 
-export const AuthContext = createContext<AuthContextType | undefined>(
-  undefined
-);
+interface AuthContextType {
+  authState: AuthState;
+  setAuthState: React.Dispatch<React.SetStateAction<AuthState>>;
+  loading: boolean;
+  login: (user: LoginUser) => Promise<void>;
+  logout: () => Promise<void>;
+  register: (user: RegisterUser) => Promise<void>;
+}
+
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 interface AuthProviderProps {
   children: ReactNode;
 }
 
+const HANDLE_AUTH_URL = import.meta.env.VITE_API_URL + "/auth";
+
+const refreshAccessToken = async () => {
+  try {
+    const response = await fetch(`${HANDLE_AUTH_URL}/refresh`, {
+      method: "POST",
+      credentials: "include" as RequestCredentials,
+    });
+    const body = (await response.json()) as ResponseBody;
+
+    if (!body.success) throw new Error(body.message);
+    return body.data as string;
+  } catch (error) {
+    console.log("Failed to fetch token:", error);
+    throw new Error("Không thể kết nối đến máy chủ");
+  }
+};
+
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  const [accessToken, setAccessToken] = useState<string | null>(null);
-  const [email, setEmail] = useState<string | null>(null);
-  const [admin, setAdmin] = useState<boolean | null>(null);
-  const [_id, set_id] = useState<string | null>(null);
+  const [authState, setAuthState] = useState<AuthState>({} as AuthState);
+  const [loading, setLoading] = useState(true);
 
-  const HANDLE_AUTH_URL = import.meta.env.VITE_API_URL + "/auth";
+  // Fetch access token on initial load and in each interval
+  const {
+    data: accessToken,
+    error: errorRefresh,
+    isLoading,
+  } = useQuery<string, Error>({
+    queryFn: refreshAccessToken,
+    queryKey: ["accessToken"],
+    refetchInterval: 1000 * 60 * 5, // Every 5 minutes
+  });
 
-  const refreshAccessToken = useCallback(async (): Promise<string | null> => {
-    try {
-      const response = await fetch(`${HANDLE_AUTH_URL}/refresh`, {
-        method: "POST",
-        credentials: "include",
+  useEffect(() => {
+    if (accessToken && !isTokenExpired(accessToken)) {
+      const { email, admin, id } = decodePayload(accessToken);
+      setAuthState({
+        id,
+        email,
+        admin,
+        accessToken,
       });
-      const data = await response.json();
-      if (response.ok) {
-        const {
-          email: emailToken,
-          admin: adminToken,
-          id,
-        } = getPayload(data.accessToken);
-        setEmail(emailToken);
-        setAdmin(adminToken);
-        set_id(id);
-
-        return data.accessToken;
-      } else {
-        return null;
+      setLoading(false);
+    } else if (!isLoading) {
+      setLoading(false);
+      if (accessToken && isTokenExpired(accessToken)) {
+        console.log(
+          "Token không hợp lệ hoặc đã hết hạn. Xin hãy đăng nhập lại."
+        ); // toast here
       }
-    } catch (error) {
-      console.error("Failed to fetch access token:", error);
-      return null;
     }
-  }, [HANDLE_AUTH_URL]);
+  }, [accessToken, isLoading]);
 
-  const login = async (user: LoginUser): Promise<boolean> => {
+  useEffect(() => {
+    if (errorRefresh && isErrorWithMessage(errorRefresh)) {
+      console.log(errorRefresh.message); // toast here
+      setLoading(false);
+    }
+  }, [errorRefresh]);
+
+  const register = async (user: RegisterUser) => {
+    try {
+      const response = await fetch(`${HANDLE_AUTH_URL}/register`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include" as RequestCredentials,
+        body: JSON.stringify(user),
+      });
+
+      const body = (await response.json()) as ResponseBody;
+      if (!body.success) throw new Error(body.message);
+    } catch (error) {
+      console.log("Registration failed:", error);
+      throw new Error("Không thể kết nối đến máy chủ");
+    }
+  };
+
+  const login = async (user: LoginUser) => {
     try {
       const response = await fetch(`${HANDLE_AUTH_URL}/login`, {
         method: "POST",
@@ -82,109 +131,55 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         credentials: "include" as RequestCredentials,
         body: JSON.stringify(user),
       });
-      const data = await response.json();
-      if (response.ok) {
-        setAccessToken(data.accessToken);
-        setEmail(data.email);
-        setAdmin(data.admin);
-        set_id(data.userid);
-        return true;
-      }
-      return false;
-    } catch (error) {
-      console.error("Login failed:", error);
-      return false;
-    }
-  };
 
-  const logout = () => {
-    setAccessToken(null);
-    setEmail(null);
-  };
+      const body = (await response.json()) as ResponseBody;
+      if (!body.success) throw new Error(body.message);
 
-  const register = async (user: RegisterUser): Promise<boolean> => {
-    try {
-      const response = await fetch(`${HANDLE_AUTH_URL}/register`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include" as RequestCredentials,
-        body: JSON.stringify(user),
+      const { email, admin, id } = decodePayload(body.data as string);
+      setAuthState({
+        id,
+        email,
+        admin,
+        accessToken: body.data as string,
       });
-      const data = await response.json();
-      if (response.ok) {
-        setAccessToken(data.accessToken);
-        setEmail(data.email);
-        setAdmin(data.admin);
-        set_id(data.userid);
-        return true;
-      }
-      return false;
     } catch (error) {
-      console.error("Registration failed:", error);
-      return false;
+      console.log("Login failed:", error);
+      throw new Error("Không thể kết nối đến máy chủ");
     }
   };
 
-  useEffect(() => {
-    const initializeAuth = async () => {
-      try {
-        let token = accessToken;
-        if (!token) {
-          token = await refreshAccessToken();
-        }
-        if (token) {
-          const isExpired = checkTokenExpiration(token);
-          if (isExpired) {
-            token = await refreshAccessToken();
-          }
-          if (token) {
-            try {
-              const {
-                email: emailToken,
-                admin: adminToken,
-                id,
-              } = getPayload(token);
-              set_id(id);
-              setEmail(emailToken);
-              setAdmin(adminToken);
-              return;
-            } catch (decodeError) {
-              console.error("Failed to decode token:", decodeError);
-              set_id(null);
-              setEmail(null);
-              setAdmin(null);
-            }
-          }
-          set_id(null);
-          setEmail(null);
-          setAdmin(null);
-          return;
-        }
-        set_id(null);
-        setEmail(null);
-        setAdmin(null);
-        return;
-      } catch (error) {
-        console.error("Failed to initialize authentication:", error);
-        set_id(null);
-        setEmail(null);
-        setAdmin(null);
-      }
-    };
-    initializeAuth();
-  }, [accessToken, refreshAccessToken]);
+  const logout = async () => {
+    try {
+      const response = await fetch(`${HANDLE_AUTH_URL}/logout`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include" as RequestCredentials,
+      });
+
+      const body = (await response.json()) as ResponseBody;
+      if (!body.success) throw new Error(body.message);
+
+      setAuthState({} as AuthState);
+    } catch (error) {
+      console.log("Logout failed:", error);
+      throw new Error("Không thể kết nối đến máy chủ");
+    }
+  };
+
+  if (errorRefresh && isErrorWithMessage(errorRefresh))
+    console.log(errorRefresh.message); // toast here
 
   return (
     <AuthContext.Provider
       value={{
-        accessToken,
-        email,
-        admin,
-        _id,
+        authState,
+        setAuthState,
+        loading,
         login,
         logout,
         register,
-        refreshAccessToken,
       }}
     >
       {children}

@@ -8,7 +8,7 @@ export interface TokenPayload {
   exp: number;
 }
 
-export const checkTokenExpiration = (token: string): boolean => {
+export const isTokenExpired = (token: string): boolean => {
   const { exp } = jwtDecode<TokenPayload>(token);
   if (Date.now() >= exp * 1000) {
     return true;
@@ -16,6 +16,8 @@ export const checkTokenExpiration = (token: string): boolean => {
   return false;
 };
 
-export const getPayload = (token: string): TokenPayload => {
-  return jwtDecode<TokenPayload>(token);
+export const decodePayload = (token: string): TokenPayload => {
+  const payload = jwtDecode<TokenPayload>(token);
+  console.log(payload);
+  return payload;
 };

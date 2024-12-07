@@ -1,24 +1,21 @@
-const userController = require("../controllers/userController");
-const middlewareController = require("../middleware/middleware");
+import {
+  deleteUser,
+  getAllUsers,
+  getUserById,
+  isActive,
+  updateUser,
+} from "../controllers/userController.js";
+import {
+  verifyToken,
+  verifyTokenAndAdminAuth,
+} from "../middleware/middleware.js";
+import express from "express";
+const router = express.Router();
 
-const router = require("express").Router();
+router.get("/", verifyToken, getAllUsers);
+router.get("/:id", verifyToken, getUserById);
+router.put("/active/:id", verifyTokenAndAdminAuth, isActive);
+router.put("/:id", verifyToken, updateUser);
+router.delete("/:id", verifyTokenAndAdminAuth, deleteUser);
 
-router.get("/", middlewareController.verifyToken, userController.getAllUsers);
-router.get(
-  "/:id",
-  middlewareController.verifyToken,
-  userController.getUserById
-);
-router.put(
-  "/active/:id",
-  middlewareController.verifyTokenAndAdminAuth,
-  userController.isActive
-);
-router.put("/:id", middlewareController.verifyToken, userController.updateUser);
-router.delete(
-  "/:id",
-  middlewareController.verifyTokenAndAdminAuth,
-  userController.deleteUser
-);
-
-module.exports = router;
+export default router;

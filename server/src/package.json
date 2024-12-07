@@ -1,11 +1,9 @@
 {
-  "name": "asset-crud",
+  "name": "wms",
   "version": "1.0.0",
-  "description": "assets management",
+  "description": "warehouse management system",
   "main": "src/server.js",
-  "author": "ThanhHieu",
-  "license": "MIT",
-  "private": true,
+  "type": "module",
   "engines": {
     "node": ">=18.x"
   },

@@ -9,55 +9,56 @@ import { useAuth } from "../../context/AuthContext";
 import { getUsers, User } from "../../interfaces/User";
 import { Address, getAddresses } from "../../interfaces/Address";
 import NavLookup from "../../utils/navigateLookup";
+import { isErrorWithMessage } from "../../utils/handleError";
 
 const GoodsDashboardPage = () => {
+  const { authState } = useAuth();
+
   const mainRef = useMainRef();
-  const { refreshAccessToken, accessToken } = useAuth();
   useScrollToMain();
 
-  const { data: users, isLoading: isLoadingUsers } = useQuery({
-    queryFn: async () => {
-      let token = accessToken;
-      if (!token) {
-        token = await refreshAccessToken();
-        if (!token) {
-          throw new Error("Unable to refresh access token");
-        }
-      }
-      return getUsers(token);
-    },
+  const {
+    data: users,
+    isLoading: isLoadingUsers,
+    error: errorUsers,
+  } = useQuery({
+    queryFn: async () => getUsers(authState.accessToken),
     queryKey: ["users"],
   });
 
-  const { data: addresses, isLoading: isLoadingAddresses } = useQuery({
-    queryFn: async () => {
-      let token = accessToken;
-      if (!token) {
-        token = await refreshAccessToken();
-        if (!token) {
-          throw new Error("Unable to refresh access token");
-        }
-      }
-      return getAddresses(token, users as User[]);
-    },
+  const {
+    data: addresses,
+    isLoading: isLoadingAddresses,
+    error: errorAddresses,
+  } = useQuery({
+    queryFn: async () => getAddresses(authState.accessToken, users as User[]),
     queryKey: ["addresses", users],
     enabled: !!users && users.length > 0,
   });
 
-  const { data: goodsList, isLoading: isLoadingGoodsList } = useQuery({
+  const {
+    data: goodsList,
+    isLoading: isLoadingGoodsList,
+    error: errorGoodsList,
+  } = useQuery({
     queryFn: async () => {
-      let token = accessToken;
-      if (!token) {
-        token = await refreshAccessToken();
-        if (!token) {
-          throw new Error("Unable to refresh access token");
-        }
-      }
-      return getGoodsList(token, users as User[], addresses as Address[]);
+      return getGoodsList(
+        authState.accessToken,
+        users as User[],
+        addresses as Address[]
+      );
     },
     queryKey: ["goodsList", addresses],
     enabled: !!addresses && addresses.length > 0,
   });
+
+  if (errorUsers && isErrorWithMessage(errorUsers)) {
+    console.log(errorUsers.message); // toast here
+  } else if (errorAddresses && isErrorWithMessage(errorAddresses)) {
+    console.log(errorAddresses.message); // toast here
+  } else if (errorGoodsList && isErrorWithMessage(errorGoodsList)) {
+    console.log(errorGoodsList.message); // toast here
+  }
 
   return (
     <main className="dashboard-page" ref={mainRef}>

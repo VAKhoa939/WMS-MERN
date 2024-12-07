@@ -5,50 +5,55 @@ import { useMainRef, useScrollToMain } from "../../context/MainRefContext";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { getUsers, User } from "../../interfaces/User";
-import { AddressRequest, getAddresses } from "../../interfaces/Address";
-import { useQuery } from "@tanstack/react-query";
+import { Address, getAddresses } from "../../interfaces/Address";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { FaAngleLeft } from "react-icons/fa";
 import Loader from "../../components/Loader";
 import { convertToNumber, formatPrice } from "../../utils/formatPrice";
 import NavLookup from "../../utils/navigateLookup";
+import { isErrorWithMessage } from "../../utils/handleError";
 
 const CreateGoodsPage = () => {
   const [formData, setFormData] = useState<Goods>({} as Goods);
-  const { refreshAccessToken, accessToken } = useAuth();
+  const { authState } = useAuth();
   const ICON_SIZE = 20;
 
   const navigate = useNavigate();
   const mainRef = useMainRef();
   useScrollToMain();
 
-  const { data: users, isLoading: isLoadingUsers } = useQuery({
-    queryFn: async () => {
-      let token = accessToken;
-      if (!token) {
-        token = await refreshAccessToken();
-        if (!token) {
-          throw new Error("Unable to refresh access token");
-        }
-      }
-      return getUsers(token);
-    },
+  const {
+    data: users,
+    isLoading: isLoadingUsers,
+    error: errorUsers,
+  } = useQuery({
+    queryFn: async () => getUsers(authState.accessToken),
     queryKey: ["users"],
   });
 
-  const { data: addresses, isLoading: isLoadingAddresses } = useQuery({
-    queryFn: async () => {
-      let token = accessToken;
-      if (!token) {
-        token = await refreshAccessToken();
-        if (!token) {
-          throw new Error("Unable to refresh access token");
-        }
-      }
-      return getAddresses(token, users as User[]);
-    },
+  const {
+    data: addresses,
+    isLoading: isLoadingAddresses,
+    error: errorAddresses,
+  } = useQuery({
+    queryFn: async () => getAddresses(authState.accessToken, users as User[]),
     queryKey: ["addresses", users],
     enabled: !!users && users.length > 0,
   });
+
+  const createGoodsMutation = useMutation(
+    (data: { goods: GoodsRequest; accessToken: string | null }) =>
+      createGoods(data.goods, data.accessToken),
+    {
+      onSuccess: () => {
+        console.log("Tạo hàng hóa thành công"); // toast here
+        navigate(NavLookup.GOODS_BASE_PATH);
+      },
+      onError: (error: Error) => {
+        if (isErrorWithMessage(error)) console.log(error.message); // toast here
+      },
+    }
+  );
 
   function handleChange(
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -82,11 +87,11 @@ const CreateGoodsPage = () => {
     } else if (e.target.name === "location") {
       const { building_id, _id } = addresses?.find(
         (address) => address._id === e.target.value
-      ) as AddressRequest;
+      ) as Address;
       setFormData((prevState) => ({
         ...prevState,
         location: _id,
-        location_code: building_id,
+        location_name: building_id,
       }));
     }
   }
@@ -95,13 +100,6 @@ const CreateGoodsPage = () => {
     e: React.MouseEvent<HTMLButtonElement, MouseEvent>
   ) {
     e.preventDefault();
-    let token = accessToken;
-    if (!token) {
-      token = await refreshAccessToken();
-      if (!token) {
-        throw new Error("Unable to refresh access token");
-      }
-    }
 
     const {
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -115,21 +113,22 @@ const CreateGoodsPage = () => {
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       responsible_user_code,
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      location_code,
+      location_name,
       ...filteredData
     } = formData;
     const goodsRequest = { ...filteredData } as GoodsRequest;
     console.log(goodsRequest);
 
-    const address = addresses?.find(
-      (address) => address._id === goodsRequest.location
-    ) as AddressRequest;
+    createGoodsMutation.mutate({
+      goods: goodsRequest,
+      accessToken: authState.accessToken,
+    });
+  }
 
-    const result = await createGoods(goodsRequest, address, token);
-    if (result) {
-      console.log("created goods successfully");
-      navigate(NavLookup.GOODS_BASE_PATH);
-    } else console.log("failed to create goods");
+  if (errorUsers && isErrorWithMessage(errorUsers)) {
+    console.log(errorUsers.message); // toast here
+  } else if (errorAddresses && isErrorWithMessage(errorAddresses)) {
+    console.log(errorAddresses.message); // toast here
   }
 
   return (

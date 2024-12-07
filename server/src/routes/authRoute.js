@@ -1,25 +1,18 @@
-const authController = require("../controllers/authController");
-const middlewareController = require("../middleware/middleware");
+import {
+  loginUser,
+  registerUser,
+  refreshToken,
+  resetPassword,
+  logoutUser,
+} from "../controllers/authController.js";
+import { verifyToken } from "../middleware/middleware.js";
+import { Router } from "express";
+const router = Router();
 
-const router = require("express").Router();
+router.post("/register", registerUser);
+router.post("/login", loginUser);
+router.post("/refresh", refreshToken);
+router.post("/logout", logoutUser);
+router.post("/reset", resetPassword);
 
-router.post("/register", authController.registerUser);
-router.post("/login", authController.loginUser);
-router.post("/refresh", authController.requestRefreshToken);
-router.delete(
-  "/:id",
-  middlewareController.verifyTokenAndAdminAuth,
-  authController.deleteUsers
-);
-router.post(
-  "/logout",
-  middlewareController.verifyToken,
-  authController.userLogout
-);
-router.post(
-  "/logout",
-  middlewareController.verifyToken,
-  authController.resetPassword
-);
-
-module.exports = router;
+export default router;

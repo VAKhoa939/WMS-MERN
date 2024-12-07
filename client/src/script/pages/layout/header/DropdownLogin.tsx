@@ -5,19 +5,23 @@ import { useNavigate } from "react-router-dom";
 import NavLookup from "../../../utils/navigateLookup";
 
 const DropdownLogin = () => {
-  const { logout, email, _id } = useAuth();
+  const { logout, authState } = useAuth();
   const navigate = useNavigate();
 
   return (
     <>
-      {email ? (
+      {authState.email ? (
         <div className="dropdown">
           <button>
             <FaUserCircle className="user-icon" size={30} />
-            <p>{email}</p>
+            <p>{authState.email}</p>
           </button>
           <ul className="dropdown-menu">
-            <li onClick={() => navigate(`${NavLookup.USER_BASE_PATH}/${_id}`)}>
+            <li
+              onClick={() =>
+                navigate(`${NavLookup.USER_BASE_PATH}/${authState.id}`)
+              }
+            >
               <p>Trang cá nhân</p>
             </li>
             <li

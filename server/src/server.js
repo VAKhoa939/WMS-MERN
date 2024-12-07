@@ -1,20 +1,20 @@
-const dotenv = require("dotenv");
-const express = require("express");
-const mongoose = require("mongoose");
-const cors = require("cors");
-const cookieParser = require("cookie-parser");
+import { config } from "dotenv";
+import express, { json } from "express";
+import { connect } from "mongoose";
+import cors from "cors";
+import cookieParser from "cookie-parser";
 
-const goodsRoutes = require("./routes/goodsRoute");
-const userRoutes = require("./routes/userRoute");
-const addressRoutes = require("./routes/addressRoute");
-const authRoutes = require("./routes/authRoute");
-const importRouter = require("./routes/importDB.Route");
-const exportRouter = require("./routes/exportDB.Route");
-const messageRouter = require("./routes/messageRoute");
+import goodsRoutes from "./routes/goodsRoute.js";
+import userRoutes from "./routes/userRoute.js";
+import addressRoutes from "./routes/addressRoute.js";
+import authRoutes from "./routes/authRoute.js";
+import importRouter from "./routes/importDBRoute.js";
+import exportRouter from "./routes/exportDBRoute.js";
+import messageRouter from "./routes/messageRoute.js";
 
-dotenv.config();
+config();
 const app = express();
-app.use(express.json());
+app.use(json());
 
 const dbURI = process.env.MONGODB_URI;
 if (!dbURI) {
@@ -22,8 +22,7 @@ if (!dbURI) {
   process.exit(1);
 }
 
-mongoose
-  .connect(dbURI)
+connect(dbURI)
   .then(() => {
     console.log("Connected to MongoDB");
   })
@@ -32,7 +31,7 @@ mongoose
     process.exit(1);
   });
 const corsOptions = {
-  origin: process.env.CORS_ORIGIN || "http://localhost:5173",
+  origin: process.env.CORS_ORIGIN || "http://127.0.0.1:5173",
   credentials: true,
 };
 
@@ -47,7 +46,7 @@ app.use("/api/export", exportRouter);
 app.use("/api/auth", authRoutes);
 app.use("/api/message", messageRouter);
 
-const host = process.env.HOST || "localhost";
+const host = process.env.HOST || "127.0.0.1";
 const port = process.env.PORT || 8080;
 app.listen(port, () => {
   console.log(`Server running on http://${host}:${port}`);

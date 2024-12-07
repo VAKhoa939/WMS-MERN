@@ -11,22 +11,18 @@ import { useMainRef, useScrollToMain } from "../../context/MainRefContext";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { getUsers, User } from "../../interfaces/User";
-import {
-  Address,
-  AddressRequest,
-  getAddresses,
-  updateAddress,
-} from "../../interfaces/Address";
-import { useQuery } from "@tanstack/react-query";
+import { Address, getAddresses } from "../../interfaces/Address";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { FaAngleLeft } from "react-icons/fa";
 import Loader from "../../components/Loader";
 import { convertToNumber, formatPrice } from "../../utils/formatPrice";
 import NavLookup from "../../utils/navigateLookup";
+import { isErrorWithMessage } from "../../utils/handleError";
 
 const GoodsInfoPage = () => {
   const [formData, setFormData] = useState<Goods>({} as Goods);
   const [mode, setMode] = useState<"info" | "update">("info");
-  const { refreshAccessToken, accessToken } = useAuth();
+  const { authState } = useAuth();
   const id = location.pathname.split("/").pop() as string;
   const ICON_SIZE = 20;
 
@@ -34,47 +30,39 @@ const GoodsInfoPage = () => {
   const mainRef = useMainRef();
   useScrollToMain();
 
-  const { data: goods, isLoading: isLoadingGoods } = useQuery<Goods>({
-    queryFn: async () => {
-      let token = accessToken;
-      if (!token) {
-        token = await refreshAccessToken();
-        if (!token) {
-          throw new Error("Unable to refresh access token");
-        }
-      }
-      return getGoodsById(id, token);
-    },
-    queryKey: ["goods", id],
-  });
-
-  const { data: users, isLoading: isLoadingUsers } = useQuery({
-    queryFn: async () => {
-      let token = accessToken;
-      if (!token) {
-        token = await refreshAccessToken();
-        if (!token) {
-          throw new Error("Unable to refresh access token");
-        }
-      }
-      return getUsers(token);
-    },
+  const {
+    data: users,
+    isLoading: isLoadingUsers,
+    error: errorUsers,
+  } = useQuery({
+    queryFn: async () => getUsers(authState.accessToken),
     queryKey: ["users"],
   });
 
-  const { data: addresses, isLoading: isLoadingAddresses } = useQuery({
-    queryFn: async () => {
-      let token = accessToken;
-      if (!token) {
-        token = await refreshAccessToken();
-        if (!token) {
-          throw new Error("Unable to refresh access token");
-        }
-      }
-      return getAddresses(token, users as User[]);
-    },
+  const {
+    data: addresses,
+    isLoading: isLoadingAddresses,
+    error: errorAddresses,
+  } = useQuery({
+    queryFn: async () => getAddresses(authState.accessToken, users as User[]),
     queryKey: ["addresses", users],
     enabled: !!users && users.length > 0,
+  });
+
+  const {
+    data: goods,
+    isLoading: isLoadingGoods,
+    error: errorGoods,
+  } = useQuery<Goods>({
+    queryFn: async () =>
+      getGoodsById(
+        id,
+        authState.accessToken,
+        users as User[],
+        addresses as Address[]
+      ),
+    queryKey: ["goods", id, users, addresses],
+    enabled: !!addresses && addresses.length > 0,
   });
 
   useEffect(() => {
@@ -82,6 +70,34 @@ const GoodsInfoPage = () => {
       setFormData({ ...goods });
     }
   }, [goods]);
+
+  const updateGoodsMutation = useMutation(
+    (data: { id: string; goods: GoodsRequest; accessToken: string | null }) =>
+      updateGoods(data.id, data.goods, data.accessToken),
+    {
+      onSuccess: () => {
+        console.log("Cập nhật hàng hóa thành công"); // toast here
+        setMode("info");
+      },
+      onError: (error: Error) => {
+        if (isErrorWithMessage(error)) console.log(error.message); // toast here
+      },
+    }
+  );
+
+  const deleteGoodsMutation = useMutation(
+    (data: { id: string; accessToken: string | null }) =>
+      deleteGoods(data.id, data.accessToken),
+    {
+      onSuccess: () => {
+        console.log("Xóa hàng hóa thành công"); // toast here
+        navigate(NavLookup.GOODS_BASE_PATH);
+      },
+      onError: (error: Error) => {
+        if (isErrorWithMessage(error)) console.log(error.message);
+      },
+    }
+  );
 
   function handleChange(
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -119,7 +135,7 @@ const GoodsInfoPage = () => {
       setFormData((prevState) => ({
         ...prevState,
         location: _id,
-        location_code: room_id,
+        location_name: room_id,
       }));
     }
   }
@@ -128,13 +144,6 @@ const GoodsInfoPage = () => {
     e: React.MouseEvent<HTMLButtonElement, MouseEvent>
   ) {
     e.preventDefault();
-    let token = accessToken;
-    if (!token) {
-      token = await refreshAccessToken();
-      if (!token) {
-        throw new Error("Unable to refresh access token");
-      }
-    }
 
     const {
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -148,30 +157,16 @@ const GoodsInfoPage = () => {
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       responsible_user_code,
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      location_code,
+      location_name,
       ...filteredData
     } = formData;
     const goodsRequest = { ...filteredData } as GoodsRequest;
-    console.log(goodsRequest);
 
-    const oldAddress = addresses?.find(
-      (address) => address._id === goods?.location
-    ) as AddressRequest;
-    oldAddress.goods_list.filter((id) => id !== goods?._id);
-
-    const newAddress = addresses?.find(
-      (address) => address._id === goodsRequest.location
-    ) as AddressRequest;
-    newAddress.goods_list.push(goodsRequest._id);
-
-    const result =
-      (await updateAddress(oldAddress._id, oldAddress, token)) &&
-      (await updateAddress(newAddress._id, newAddress, token)) &&
-      (await updateGoods(goodsRequest._id, goodsRequest, token));
-    if (result) {
-      console.log("Updated goods successfully");
-      setMode("info");
-    } else console.log("Failed to update goods");
+    updateGoodsMutation.mutate({
+      id: goodsRequest._id,
+      goods: goodsRequest,
+      accessToken: authState.accessToken,
+    });
   }
 
   async function handleDelete(
@@ -180,17 +175,7 @@ const GoodsInfoPage = () => {
       | React.MouseEvent<HTMLButtonElement, MouseEvent>
   ) {
     e.preventDefault();
-    let token = accessToken;
-    if (!token) {
-      token = await refreshAccessToken();
-      if (!token) {
-        throw new Error("Unable to refresh access token");
-      }
-    }
-    const result = await deleteGoods(id, token);
-    if (result) {
-      navigate(NavLookup.GOODS_BASE_PATH);
-    }
+    deleteGoodsMutation.mutate({ id, accessToken: authState.accessToken });
   }
 
   const UpdateMode = (): ReactNode => {
@@ -309,7 +294,7 @@ const GoodsInfoPage = () => {
                   value={address._id}
                   selected={address._id === formData.location}
                 >
-                  {address.building_id}
+                  {address.building_name}
                 </option>
               ))}
             </select>
@@ -405,7 +390,7 @@ const GoodsInfoPage = () => {
           </div>
           <div className="info-container">
             <div className="info-header">Địa chỉ nhà kho: </div>
-            <p>{formData.location_code || "Không có"}</p>
+            <p>{formData.location_name || "Không có"}</p>
           </div>
           <div className="info-container">
             <div className="info-header">Người chịu trách nhiệm: </div>
@@ -435,6 +420,14 @@ const GoodsInfoPage = () => {
       </div>
     );
   };
+
+  if (errorUsers && isErrorWithMessage(errorUsers)) {
+    console.log(errorUsers.message); // toast here
+  } else if (errorAddresses && isErrorWithMessage(errorAddresses)) {
+    console.log(errorAddresses.message); // toast here
+  } else if (errorGoods && isErrorWithMessage(errorGoods)) {
+    console.log(errorGoods.message); // toast here
+  }
 
   return (
     <main ref={mainRef} className="info-page">

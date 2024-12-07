@@ -5,6 +5,8 @@ import { useNavigate, Link } from "react-router-dom";
 import { useAuth, LoginUser } from "../../context/AuthContext";
 import { useMainRef, useScrollToMain } from "../../context/MainRefContext";
 import { useState } from "react";
+import { useMutation } from "@tanstack/react-query";
+import { isErrorWithMessage } from "../../utils/handleError";
 
 const LoginPage = () => {
   const [loginUser, setLoginUser] = useState<LoginUser>({} as LoginUser);
@@ -15,6 +17,19 @@ const LoginPage = () => {
   const mainRef = useMainRef();
   useScrollToMain();
 
+  const loginMutation = useMutation(
+    (data: { user: LoginUser }) => login(data.user),
+    {
+      onSuccess: () => {
+        console.log("Đăng nhập thành công"); // toast here
+        navigate("/");
+      },
+      onError: (error: Error) => {
+        if (isErrorWithMessage(error)) console.log(error.message); // toast here
+      },
+    }
+  );
+
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     const { name } = e.target;
     const value = e.target.value;
@@ -23,10 +38,7 @@ const LoginPage = () => {
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
-    const success = await login(loginUser);
-    if (success) {
-      navigate("/");
-    }
+    loginMutation.mutate({ user: loginUser });
   }
 
   return (
