@@ -27,6 +27,7 @@ Yarn version: 1.22.22
     # c. JWT Secret key
     JWT_SECRET=your-jwt-secret
     JWT_REFRESH_SECRET=your-jwt-refresh-secret
+    GEMINI_API_KEY=your-gemini-api-key
 
     # d. URL for client
     CORS_ORIGIN=http://localhost:5173
