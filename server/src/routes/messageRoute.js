@@ -1,12 +1,14 @@
+import { config } from "dotenv";
 import express from "express";
-const router = express.Router();
-
 import {
   GoogleGenerativeAI,
   HarmCategory,
   HarmBlockThreshold,
 } from "@google/generative-ai";
 import Goods from "../models/goodsModel.js";
+
+config();
+const router = express.Router();
 
 router.post("/", async (req, res) => {
   const userMessage = req.body;
@@ -27,8 +29,7 @@ async function createAIMessages(userMessage) {
   return messageList;
 }
 
-const apiKey =
-  process.env.GEMINI_API_KEY || "AIzaSyAy6zObJGrxuFroxin_IIhMz1oyyiqAZGE";
+const apiKey = process.env.GEMINI_API_KEY;
 const genAI = new GoogleGenerativeAI(apiKey);
 
 const model = genAI.getGenerativeModel({
@@ -50,12 +51,12 @@ async function run(input) {
   });
 
   const data = JSON.stringify(await Goods.find({}));
-  console.log(data);
   const schema = JSON.stringify(Goods.schema);
   const prompt = `This is the data of this collection: ${data}, process the user input ${input} and translate the response into a concise and sophisticated human-readable description. Add the currency VNĐ after a price`;
 
   const result = await chatSession.sendMessage(prompt);
   const response = result.response;
+  console.log(response);
   return response.text();
 }
 
